@@ -158,14 +158,10 @@ int main(void)
   HAL_GPIO_WritePin(LOAD_GPIO_Port, LOAD_Pin, GPIO_PIN_RESET);
 
 
-  {
- 	  char temp[]="\n\n\r!!! GET STARTED !!!\n\n\r";
+   {
+ 	  char temp[]="\n\n\r!!! GET STARTED !!!\n\r";
  	  HAL_UART_Transmit(&huart2, (uint8_t*)temp, strlen(temp),100);
-
    }
-
-  period = 100;
-  wave = 1;
 
   /* USER CODE END 2 */
 
@@ -173,24 +169,6 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-//	  static uint64_t timestamp = 0;
-//	  static uint64_t period = 100;
-
-//	  if (micros() - timestamp > period)
-//	  {
-//			timestamp = micros();
-//			dataOut++;
-//			if(dataOut > ADCmax[1])
-//			{
-//				dataOut = ADCmin[1];
-//			}
-//			if (hspi3.State == HAL_SPI_STATE_READY
-//				&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
-//			{
-//				MCP4922SetOutput(DACConfig, dataOut);
-//			}
-//	  }
-
 	  if(freqx10[wave] == 0)
 	  {
 		  dataOut = ADCmax[wave]*99/100;
@@ -362,7 +340,7 @@ int main(void)
 						break;
 					case '1':
 						wave = 1;
-						period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
+						period = 1030000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						State = Menu_1_Print;
 						break;
 					case '2':
@@ -374,7 +352,7 @@ int main(void)
 						break;
 					case '3':
 						wave = 3;
-						period = 1000000 / (freqx10[3]*100/10);
+						period = 1090000 / (freqx10[3]*100/10);
 						State = Menu_3_Print;
 						break;
 					case 'x':
@@ -423,7 +401,7 @@ int main(void)
 						{
 							Vmax[1] 	+= 1;
 							ADCmax[1]	+= (4096 / Vrefx10);
-							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
+							period = 1030000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
@@ -437,7 +415,7 @@ int main(void)
 						{
 							Vmax[1] 	-= 1;
 							ADCmax[1]	-= (4096 / Vrefx10);
-							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
+							period = 1030000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
@@ -451,7 +429,7 @@ int main(void)
 						{
 							Vmin[1] += 1;
 							ADCmin[1]	+= (4096 / Vrefx10);
-							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
+							period = 1030000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
@@ -465,7 +443,7 @@ int main(void)
 						{
 							Vmin[1] -= 1;
 							ADCmin[1]	-= (4096 / Vrefx10);
-							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
+							period = 1030000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
@@ -478,7 +456,7 @@ int main(void)
 						else
 						{
 							freqx10[1] += 1;
-							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
+							period = 1030000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
@@ -491,7 +469,7 @@ int main(void)
 						else
 						{
 							freqx10[1] -= 1;
-							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
+							period = 1030000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
@@ -724,7 +702,7 @@ int main(void)
 						else
 						{
 							freqx10[3] += 1;
-							period = 1000000 / (freqx10[3]*100/10);
+							period = 1090000 / (freqx10[3]*100/10);
 						}
 						State = Menu_3_Print;
 						break;
@@ -737,7 +715,7 @@ int main(void)
 						else
 						{
 							freqx10[3] -= 1;
-							period = 1000000 / (freqx10[3]*100/10);
+							period = 1090000 / (freqx10[3]*100/10);
 						}
 						State = Menu_3_Print;
 						break;
