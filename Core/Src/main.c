@@ -169,9 +169,9 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  if(freqx10[wave] == 0)
+	  if(freqx10[wave] == 0 || period == 0)
 	  {
-		  dataOut = ADCmax[wave]*99/100;
+		  dataOut = ADCmax[wave]*999/1000;
 		  if (hspi3.State == HAL_SPI_STATE_READY
 			  && HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
 				{
@@ -283,7 +283,7 @@ int main(void)
 						}
 						else if(Cycle <= DutyCycle)
 						{
-							dataOut = ADCmax[3] * 99/100;
+							dataOut = ADCmax[3] *999/1000;
 						}
 						else
 						{
