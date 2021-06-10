@@ -60,13 +60,15 @@ uint8_t DACConfig 	= 0b0011;
 char TxDataBuffer[32]    = { 0 };
 char RxDataBuffer[32]    = { 0 };
 
-float    VRef 		= 3.3;
-uint8_t  Vmax 		= 33;
-uint8_t  Vmin 		= 0;
-uint16_t ADCMax 	= 4096;
-uint16_t ADCMin 	= 0;
+uint8_t  wave		= 0;
 
-uint8_t  freqx10	= 10;
+uint8_t  Vrefx10    = 33;
+uint8_t  Vmax[4] 	= {0,33,33,33};
+uint8_t  Vmin[4] 	= {0};
+uint16_t ADCmax[4]	= {0,4096,4096,4096};
+uint16_t ADCmin[4] 	= {0};
+
+uint8_t  freqx10[4]	= {0,10,10,10};
 uint64_t period 	= 0;
 uint64_t timestamp  = 0;
 
@@ -148,7 +150,6 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*) &ADCin, 1);
   HAL_GPIO_WritePin(LOAD_GPIO_Port, LOAD_Pin, GPIO_PIN_RESET);
 
-  period = 1000000/(freqx10 * (ADCMax - ADCMin) / 10);
 
   {
  	  char temp[]="\n\n\r!!! GET STARTED !!!\n\n\r";
@@ -156,17 +157,115 @@ int main(void)
 
    }
 
+  period = 100;
+  wave = 1;
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+//	  static uint64_t timestamp = 0;
+//	  static uint64_t period = 100;
+
+//	  if (micros() - timestamp > period)
+//	  {
+//			timestamp = micros();
+//			dataOut++;
+//			if(dataOut > ADCmax[1])
+//			{
+//				dataOut = ADCmin[1];
+//			}
+//			if (hspi3.State == HAL_SPI_STATE_READY
+//				&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
+//			{
+//				MCP4922SetOutput(DACConfig, dataOut);
+//			}
+//	  }
+
+	  if(freqx10[wave] == 0)
+	  {
+		  dataOut = ADCmax[wave]*99/100;
+		  if (hspi3.State == HAL_SPI_STATE_READY
+			  && HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
+				{
+					MCP4922SetOutput(DACConfig, dataOut);
+				}
+
+	  }
+	  else
+	  {
+		  switch(wave)
+		  {
+			  case 1 :
+				  switch(slope[0])
+				  {
+					  case 'U' :
+						if (micros() - timestamp > period)
+						{
+							timestamp = micros();
+
+							if(dataOut >= ADCmax[1])
+							{
+								dataOut = ADCmin[1];
+							}
+							else
+							{
+								dataOut++;
+							}
+							if (hspi3.State == HAL_SPI_STATE_READY
+								&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
+							{
+								MCP4922SetOutput(DACConfig, dataOut);
+							}
+						}
+						break;
+					  case 'D' :
+						if (micros() - timestamp > period)
+						{
+							timestamp = micros();
+
+							if(dataOut <= ADCmin[1])
+							{
+								dataOut = ADCmax[1];
+							}
+							else
+							{
+								dataOut--;
+							}
+							if (hspi3.State == HAL_SPI_STATE_READY
+								&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
+							{
+								MCP4922SetOutput(DACConfig, dataOut);
+							}
+						}
+						break;
+					  default:
+						  break;
+				  }
+				  break;
+
+			  case 2 :
+				  break;
+
+			  case 3 :
+				  break;
+
+			  default :
+				  break;
+		  }
+
+	  }
+
+
+
 
 	  HAL_UART_Receive_IT(&huart2,  (uint8_t*)RxDataBuffer, 32);
 	  int16_t inputchar = UARTRecieveIT();
 
 	  static Transition_State State = Main_Menu_Print;
+
 
 		switch(State)
 		{
@@ -194,12 +293,18 @@ int main(void)
 					case -1 :
 						break;
 					case '1':
+						wave = 1;
+						period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						State = Menu_1_Print;
 						break;
 					case '2':
+						wave = 2;
+						period = 1000000/(freqx10[2] * (ADCmax[2] - ADCmin[2]) / 10);
 						State = Menu_2_Print;
 						break;
 //					case '3':
+//						wave = 3;
+//						period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 //						State = Menu_3_Print;
 //						break;
 					case 'x':
@@ -220,11 +325,11 @@ int main(void)
 			case Menu_1_Print:
 				sprintf(TxDataBuffer, "\n----- Sawtooth -----\n\r");
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "V High = %d.%d\t[a]Up [s]Down\n\r",Vmax/10, Vmax%10);
+				sprintf(TxDataBuffer, "V High = %d.%d\t[a]Up [s]Down\n\r",Vmax[1]/10, Vmax[1]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "V Low  = %d.%d\t[d]Up [f]Down\n\r",Vmin/10, Vmin%10);
+				sprintf(TxDataBuffer, "V Low  = %d.%d\t[d]Up [f]Down\n\r",Vmin[1]/10, Vmin[1]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "Freq   = %d.%d\t[g]Up [h]Down\n\r",freqx10/10, freqx10%10);
+				sprintf(TxDataBuffer, "Freq   = %d.%d\t[g]Up [h]Down\n\r",freqx10[1]/10, freqx10[1]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 				sprintf(TxDataBuffer, "Slope  = %s\t[j]Switch Slope\n\r",slope);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
@@ -239,74 +344,84 @@ int main(void)
 					case -1 :
 						break;
 					case 'a':
-						if(Vmax == 33)
+						if(Vmax[1] == 33)
 						{
 							sprintf(TxDataBuffer, "\nV High is Max at 3.3\n\r");
 							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 						}
 						else
 						{
-							Vmax += 1;
+							Vmax[1] 	+= 1;
+							ADCmax[1]	+= (4096 / Vrefx10);
+							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
 					case 's':
-						if(Vmax == Vmin)
+						if(Vmax[1] == Vmin[1])
 						{
 							sprintf(TxDataBuffer, "\nV High can't Less than V Low\n\r");
 							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 						}
 						else
 						{
-							Vmax -= 1;
+							Vmax[1] 	-= 1;
+							ADCmax[1]	-= (4096 / Vrefx10);
+							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
 					case 'd':
-						if(Vmax == Vmin)
+						if(Vmax[1] == Vmin[1])
 						{
 							sprintf(TxDataBuffer, "\nV Low can't More than V High\n\r");
 							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 						}
 						else
 						{
-							Vmin += 1;
+							Vmin[1] += 1;
+							ADCmin[1]	+= (4096 / Vrefx10);
+							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
 					case 'f':
-						if(Vmin == 0)
+						if(Vmin[1] == 0)
 						{
 							sprintf(TxDataBuffer, "\nV Low is Min at 0.0\n\r");
 							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 						}
 						else
 						{
-							Vmin -= 1;
+							Vmin[1] -= 1;
+							ADCmin[1]	-= (4096 / Vrefx10);
+							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
 					case 'g':
-						if(freqx10 == 100)
+						if(freqx10[1] == 100)
 						{
 							sprintf(TxDataBuffer, "\nFreq is Max at 10.0 Hz\n\r");
 							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 						}
 						else
 						{
-							freqx10 += 1;
+							freqx10[1] += 1;
+							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
 					case 'h':
-						if(freqx10 == 0)
+						if(freqx10[1] == 0)
 						{
 							sprintf(TxDataBuffer, "\nFreq is Min at 0.0 Hz\n\r");
 							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 						}
 						else
 						{
-							freqx10 -= 1;
+							freqx10[1] -= 1;
+							period = 1000000/(freqx10[1] * (ADCmax[1] - ADCmin[1]) / 10);
 						}
 						State = Menu_1_Print;
 						break;
@@ -322,10 +437,6 @@ int main(void)
 						}
 						State = Menu_1_Print;
 						break;
-
-
-
-
 					case 'x':
 						State = Main_Menu_Print;
 						break;
@@ -383,24 +494,6 @@ int main(void)
 
 
 
-
-
-
-
-
-
-
-//	  if (micros() - timestamp > period)
-//	  {
-//			timestamp = micros();
-//			dataOut++;
-//			dataOut %= 4096;
-//			if (hspi3.State == HAL_SPI_STATE_READY
-//				&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
-//			{
-//				MCP4922SetOutput(DACConfig, dataOut);
-//			}
-//	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
