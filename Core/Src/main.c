@@ -24,6 +24,7 @@
 /* USER CODE BEGIN Includes */
 #include <stdio.h>
 #include <string.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -72,7 +73,11 @@ uint8_t  freqx10[4]	= {0,10,10,10};
 uint64_t period 	= 0;
 uint64_t timestamp  = 0;
 
+
 char slope[5] = "UP";
+float degree  = 0.000;
+uint16_t Amplitude	= 2048;
+uint16_t Shift	    = 2048;
 
 typedef enum
 {
@@ -198,6 +203,15 @@ int main(void)
 	  {
 		  switch(wave)
 		  {
+		  	  case 0 :
+		  		dataOut = 0;
+				 if (hspi3.State == HAL_SPI_STATE_READY
+					  && HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
+						{
+							MCP4922SetOutput(DACConfig, dataOut);
+						}
+		  		  break;
+
 			  case 1 :
 				  switch(slope[0])
 				  {
@@ -247,6 +261,26 @@ int main(void)
 				  break;
 
 			  case 2 :
+				  if (micros() - timestamp > period)
+				  {
+						timestamp = micros();
+
+						if(degree >= 6.29)  //2PI
+						{
+							degree = 0;
+						}
+						else
+						{
+							degree += 0.01;
+						}
+						dataOut = ( sin(degree)*Amplitude ) + Shift;
+
+						if (hspi3.State == HAL_SPI_STATE_READY
+							&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
+						{
+							MCP4922SetOutput(DACConfig, dataOut);
+						}
+				  }
 				  break;
 
 			  case 3 :
@@ -299,7 +333,9 @@ int main(void)
 						break;
 					case '2':
 						wave = 2;
-						period = 1000000/(freqx10[2] * (ADCmax[2] - ADCmin[2]) / 10);
+						Amplitude 	= (ADCmax[2] - ADCmin[2]) / 2;
+						Shift  		= (ADCmax[2] + ADCmin[2]) / 2;
+						period 		= 1000000 / (freqx10[2]*628/10);
 						State = Menu_2_Print;
 						break;
 //					case '3':
@@ -325,11 +361,11 @@ int main(void)
 			case Menu_1_Print:
 				sprintf(TxDataBuffer, "\n----- Sawtooth -----\n\r");
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "V High = %d.%d\t[a]Up [s]Down\n\r",Vmax[1]/10, Vmax[1]%10);
+				sprintf(TxDataBuffer, "V High = %d.%d\t[a] +  [s] -\n\r",Vmax[1]/10, Vmax[1]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "V Low  = %d.%d\t[d]Up [f]Down\n\r",Vmin[1]/10, Vmin[1]%10);
+				sprintf(TxDataBuffer, "V Low  = %d.%d\t[d] +  [f] -\n\r",Vmin[1]/10, Vmin[1]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "Freq   = %d.%d\t[g]Up [h]Down\n\r",freqx10[1]/10, freqx10[1]%10);
+				sprintf(TxDataBuffer, "Freq   = %d.%d\t[g] +  [h] -\n\r",freqx10[1]/10, freqx10[1]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 				sprintf(TxDataBuffer, "Slope  = %s\t[j]Switch Slope\n\r",slope);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
@@ -438,6 +474,7 @@ int main(void)
 						State = Menu_1_Print;
 						break;
 					case 'x':
+						wave = 0;
 						State = Main_Menu_Print;
 						break;
 					default:
@@ -453,11 +490,11 @@ int main(void)
 			case Menu_2_Print:
 				sprintf(TxDataBuffer, "\n----- Sine Wave -----\n\r");
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "V High = \t[a]Up [s]Down\n\r");
+				sprintf(TxDataBuffer, "V High = %d.%d\t[a] +  [s] -\n\r",Vmax[2]/10, Vmax[2]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "V Low  = \t[d]Up [f]Down\n\r");
+				sprintf(TxDataBuffer, "V Low  = %d.%d\t[d] +  [f] -\n\r",Vmin[2]/10, Vmin[2]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "Slope  = \t[g]Switch Slope\n\n\r");
+				sprintf(TxDataBuffer, "Freq   = %d.%d\t[g] +  [h] -\n\n\r",freqx10[2]/10, freqx10[2]%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 				sprintf(TxDataBuffer, "----------------[x]Back\n\n\r");
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
@@ -470,11 +507,98 @@ int main(void)
 				{
 					case -1 :
 						break;
+					case 'a':
+						if(Vmax[2] == 33)
+						{
+							sprintf(TxDataBuffer, "\nV High is Max at 3.3\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							Vmax[2] 	+= 1;
+							ADCmax[2]	+= (4096 / Vrefx10);
+							Amplitude 	=  (ADCmax[2] - ADCmin[2]) / 2;
+							Shift  		=  (ADCmax[2] + ADCmin[2]) / 2;
+						}
+						State = Menu_2_Print;
+						break;
+					case 's':
+						if(Vmax[2] == Vmin[2])
+						{
+							sprintf(TxDataBuffer, "\nV High can't Less than V Low\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							Vmax[2] 	-= 1;
+							ADCmax[2]	-= (4096 / Vrefx10);
+							Amplitude 	=  (ADCmax[2] - ADCmin[2]) / 2;
+							Shift  		=  (ADCmax[2] + ADCmin[2]) / 2;
+						}
+						State = Menu_2_Print;
+						break;
+					case 'd':
+						if(Vmax[2] == Vmin[2])
+						{
+							sprintf(TxDataBuffer, "\nV Low can't More than V High\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							Vmin[2] += 1;
+							ADCmin[2]	+= (4096 / Vrefx10);
+							Amplitude 	=  (ADCmax[2] - ADCmin[2]) / 2;
+							Shift  		=  (ADCmax[2] + ADCmin[2]) / 2;
+						}
+						State = Menu_2_Print;
+						break;
+					case 'f':
+						if(Vmin[2] == 0)
+						{
+							sprintf(TxDataBuffer, "\nV Low is Min at 0.0\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							Vmin[2] -= 1;
+							ADCmin[2]	-= (4096 / Vrefx10);
+							Amplitude 	=  (ADCmax[2] - ADCmin[2]) / 2;
+							Shift  		=  (ADCmax[2] + ADCmin[2]) / 2;
+						}
+						State = Menu_2_Print;
+						break;
+					case 'g':
+						if(freqx10[2] == 100)
+						{
+							sprintf(TxDataBuffer, "\nFreq is Max at 10.0 Hz\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							freqx10[2] += 1;
+							period = 1000000 / (freqx10[2]*628/10);
+						}
+						State = Menu_2_Print;
+						break;
+					case 'h':
+						if(freqx10[2] == 0)
+						{
+							sprintf(TxDataBuffer, "\nFreq is Min at 0.0 Hz\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							freqx10[2] -= 1;
+							period = 1000000 / (freqx10[2]*628/10);
+						}
+						State = Menu_2_Print;
+						break;
 					case 'x':
+						wave = 0;
 						State = Main_Menu_Print;
 						break;
 					default:
-						sprintf(TxDataBuffer, "\nOnly [a][s][d][f][g][x] Pls\n\r");
+						sprintf(TxDataBuffer, "\nOnly[a][s][d][f][g][h][x]\n\r");
 						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 						State = Menu_2_Print;
 						break;
