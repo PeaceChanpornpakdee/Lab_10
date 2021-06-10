@@ -51,6 +51,10 @@ TIM_HandleTypeDef htim11;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
+uint16_t ADCin 		= 0;
+uint64_t _micro 	= 0;
+uint16_t dataOut 	= 0;
+uint8_t DACConfig 	= 0b0011;
 
 /* USER CODE END PV */
 
@@ -64,7 +68,8 @@ static void MX_SPI3_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_TIM11_Init(void);
 /* USER CODE BEGIN PFP */
-
+void MCP4922SetOutput(uint8_t Config, uint16_t DACOutput);
+uint64_t micros();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -107,6 +112,10 @@ int main(void)
   MX_TIM3_Init();
   MX_TIM11_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start(&htim3);
+  HAL_TIM_Base_Start_IT(&htim11);
+  HAL_ADC_Start_DMA(&hadc1, (uint32_t*) &ADCin, 1);
+  HAL_GPIO_WritePin(LOAD_GPIO_Port, LOAD_Pin, GPIO_PIN_RESET);
 
   /* USER CODE END 2 */
 
@@ -114,6 +123,18 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  static uint64_t timestamp = 0;
+	  if (micros() - timestamp > 100) //100 us = 10kHz
+	  {
+			timestamp = micros();
+			dataOut++;
+			dataOut %= 4096;
+			if (hspi3.State == HAL_SPI_STATE_READY
+					&& HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_SET) //SS
+			{
+				MCP4922SetOutput(DACConfig, dataOut);
+			}
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -187,14 +208,14 @@ static void MX_ADC1_Init(void)
   hadc1.Instance = ADC1;
   hadc1.Init.ClockPrescaler = ADC_CLOCK_SYNC_PCLK_DIV4;
   hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.ScanConvMode = DISABLE;
+  hadc1.Init.ScanConvMode = ENABLE;
   hadc1.Init.ContinuousConvMode = DISABLE;
   hadc1.Init.DiscontinuousConvMode = DISABLE;
   hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_RISING;
   hadc1.Init.ExternalTrigConv = ADC_EXTERNALTRIGCONV_T3_TRGO;
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
+  hadc1.Init.DMAContinuousRequests = ENABLE;
   hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
@@ -435,7 +456,33 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void MCP4922SetOutput(uint8_t Config, uint16_t DACOutput)
+{
+	uint32_t OutputPacket = (DACOutput & 0x0fff) | ((Config & 0xf) << 12);
+	HAL_GPIO_WritePin(SPI_SS_GPIO_Port, SPI_SS_Pin, GPIO_PIN_RESET);
+	HAL_SPI_Transmit_IT(&hspi3, &OutputPacket, 1);
+}
 
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+	if (hspi == &hspi3)
+	{
+		HAL_GPIO_WritePin(SPI_SS_GPIO_Port, SPI_SS_Pin, GPIO_PIN_SET);
+	}
+}
+
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim == &htim11)
+	{
+		_micro += 65535;
+	}
+}
+
+inline uint64_t micros()
+{
+	return htim11.Instance->CNT + _micro;
+}
 /* USER CODE END 4 */
 
 /**
