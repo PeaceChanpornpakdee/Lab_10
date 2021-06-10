@@ -56,6 +56,17 @@ uint64_t _micro 	= 0;
 uint16_t dataOut 	= 0;
 uint8_t DACConfig 	= 0b0011;
 
+float    VRef 		= 3.3;
+float 	 VMax 		= 3.3;
+float 	 VMin 		= 0;
+uint16_t ADCMax 	= 4096;
+uint16_t ADCMin 	= 0;
+
+float    freq		= 1;
+uint64_t period 	= 0;
+
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -117,6 +128,8 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*) &ADCin, 1);
   HAL_GPIO_WritePin(LOAD_GPIO_Port, LOAD_Pin, GPIO_PIN_RESET);
 
+  period = 1000000/(freq * (ADCMax - ADCMin));
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -124,13 +137,13 @@ int main(void)
   while (1)
   {
 	  static uint64_t timestamp = 0;
-	  if (micros() - timestamp > 100) //100 us = 10kHz
+	  if (micros() - timestamp > period)
 	  {
 			timestamp = micros();
 			dataOut++;
 			dataOut %= 4096;
 			if (hspi3.State == HAL_SPI_STATE_READY
-					&& HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_SET) //SS
+				&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
 			{
 				MCP4922SetOutput(DACConfig, dataOut);
 			}
@@ -216,7 +229,7 @@ static void MX_ADC1_Init(void)
   hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
   hadc1.Init.NbrOfConversion = 1;
   hadc1.Init.DMAContinuousRequests = ENABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc1.Init.EOCSelection = ADC_EOC_SEQ_CONV;
   if (HAL_ADC_Init(&hadc1) != HAL_OK)
   {
     Error_Handler();
@@ -255,7 +268,7 @@ static void MX_SPI3_Init(void)
   hspi3.Instance = SPI3;
   hspi3.Init.Mode = SPI_MODE_MASTER;
   hspi3.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi3.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi3.Init.DataSize = SPI_DATASIZE_16BIT;
   hspi3.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi3.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi3.Init.NSS = SPI_NSS_SOFT;

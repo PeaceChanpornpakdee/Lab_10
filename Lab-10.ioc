@@ -1,8 +1,9 @@
 #MicroXplorer Configuration settings - do not modify
 ADC1.Channel-0\#ChannelRegularConversion=ADC_CHANNEL_0
 ADC1.DMAContinuousRequests=ENABLE
+ADC1.EOCSelection=ADC_EOC_SEQ_CONV
 ADC1.ExternalTrigConv=ADC_EXTERNALTRIGCONV_T3_TRGO
-ADC1.IPParameters=Rank-0\#ChannelRegularConversion,master,Channel-0\#ChannelRegularConversion,SamplingTime-0\#ChannelRegularConversion,NbrOfConversionFlag,ExternalTrigConv,ScanConvMode,DMAContinuousRequests
+ADC1.IPParameters=Rank-0\#ChannelRegularConversion,master,Channel-0\#ChannelRegularConversion,SamplingTime-0\#ChannelRegularConversion,NbrOfConversionFlag,ExternalTrigConv,ScanConvMode,DMAContinuousRequests,EOCSelection
 ADC1.NbrOfConversionFlag=1
 ADC1.Rank-0\#ChannelRegularConversion=1
 ADC1.SamplingTime-0\#ChannelRegularConversion=ADC_SAMPLETIME_3CYCLES
@@ -209,8 +210,9 @@ SH.GPXTI13.0=GPIO_EXTI13
 SH.GPXTI13.ConfNb=1
 SPI3.BaudRatePrescaler=SPI_BAUDRATEPRESCALER_4
 SPI3.CalculateBaudRate=12.5 MBits/s
+SPI3.DataSize=SPI_DATASIZE_16BIT
 SPI3.Direction=SPI_DIRECTION_2LINES
-SPI3.IPParameters=VirtualType,Mode,Direction,CalculateBaudRate,BaudRatePrescaler
+SPI3.IPParameters=VirtualType,Mode,Direction,CalculateBaudRate,BaudRatePrescaler,DataSize
 SPI3.Mode=SPI_MODE_MASTER
 SPI3.VirtualType=VM_MASTER
 TIM11.IPParameters=Prescaler
