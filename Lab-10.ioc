@@ -76,6 +76,7 @@ NVIC.PriorityGroup=NVIC_PRIORITYGROUP_0
 NVIC.SPI3_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 NVIC.SVCall_IRQn=true\:0\:0\:false\:false\:true\:false\:false
 NVIC.SysTick_IRQn=true\:0\:0\:true\:false\:true\:true\:true
+NVIC.USART2_IRQn=true\:0\:0\:false\:false\:true\:true\:true
 NVIC.UsageFault_IRQn=true\:0\:0\:false\:false\:true\:true\:false
 PA0-WKUP.Signal=ADCx_IN0
 PA13.GPIOParameters=GPIO_Label

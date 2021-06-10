@@ -22,7 +22,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -56,6 +57,9 @@ uint64_t _micro 	= 0;
 uint16_t dataOut 	= 0;
 uint8_t DACConfig 	= 0b0011;
 
+char TxDataBuffer[32]    = { 0 };
+char RxDataBuffer[32]    = { 0 };
+
 float    VRef 		= 3.3;
 float 	 VMax 		= 3.3;
 float 	 VMin 		= 0;
@@ -64,7 +68,20 @@ uint16_t ADCMin 	= 0;
 
 float    freq		= 1;
 uint64_t period 	= 0;
+uint64_t timestamp  = 0;
 
+typedef enum
+{
+	Main_Menu_Print,
+	Main_Menu_Select,
+	Menu_1_Print,
+	Menu_1_Select,
+	Menu_2_Print,
+	Menu_2_Select,
+	Menu_3_Print,
+	Menu_3_Select,
+
+}Transition_State;
 
 
 /* USER CODE END PV */
@@ -81,6 +98,7 @@ static void MX_TIM11_Init(void);
 /* USER CODE BEGIN PFP */
 void MCP4922SetOutput(uint8_t Config, uint16_t DACOutput);
 uint64_t micros();
+int16_t UARTRecieveIT();
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -130,24 +148,191 @@ int main(void)
 
   period = 1000000/(freq * (ADCMax - ADCMin));
 
+  {
+ 	  char temp[]="\n\n\r!!! GET STARTED !!!\n\n\r";
+ 	  HAL_UART_Transmit(&huart2, (uint8_t*)temp, strlen(temp),100);
+
+   }
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  static uint64_t timestamp = 0;
-	  if (micros() - timestamp > period)
-	  {
-			timestamp = micros();
-			dataOut++;
-			dataOut %= 4096;
-			if (hspi3.State == HAL_SPI_STATE_READY
-				&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
-			{
-				MCP4922SetOutput(DACConfig, dataOut);
-			}
-	  }
+
+	  HAL_UART_Receive_IT(&huart2,  (uint8_t*)RxDataBuffer, 32);
+	  int16_t inputchar = UARTRecieveIT();
+
+	  static Transition_State State = Main_Menu_Print;
+
+		switch(State)
+		{
+	//--------------------------------------------------------------------------------------------------------
+
+			case Main_Menu_Print:
+				sprintf(TxDataBuffer, "\n--------------------------\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "  Choose Your Waveform\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "--------------------------\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "[1] Sawtooth\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "[2] Sine Wave\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "[3] Square Wave\n\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				State = Main_Menu_Select;
+				break;
+
+			case Main_Menu_Select:
+				switch(inputchar)
+				{
+					case -1 :
+						break;
+					case '1':
+						State = Menu_1_Print;
+						break;
+					case '2':
+						State = Menu_2_Print;
+						break;
+//					case '3':
+//						State = Menu_3_Print;
+//						break;
+					case 'x':
+						sprintf(TxDataBuffer, "No More Back\n\r");
+						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						State = Main_Menu_Print;
+						break;
+					default:
+						sprintf(TxDataBuffer, "\nOnly [1][2][3] Key Available\n\r");
+						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						State = Main_Menu_Print;
+						break;
+				}
+				break;
+
+	//--------------------------------------------------------------------------------------------------------
+
+			case Menu_1_Print:
+				sprintf(TxDataBuffer, "\n----- Sawtooth -----\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "V High = \t[a]Up [s]Down\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "V Low  = \t[d]Up [f]Down\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "Freq   = \t[g]Up [h]Down\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "Slope  = \t[j]Switch Slope\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "----------------[x]Back\n\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				State = Menu_1_Select;
+				break;
+
+			case Menu_1_Select:
+				switch(inputchar)
+				{
+					case -1 :
+						break;
+					case 'a':
+						sprintf(TxDataBuffer, "Blinking LED at %d Hz\n\r", VMax);
+						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+
+//						sprintf(TxDataBuffer, "Blinking LED at %d Hz\n\r", LEDFrequency);
+//						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						break;
+					case 's':
+//						if(LEDFrequency != 0)
+//						{
+//
+//							sprintf(TxDataBuffer, "Blinking LED at %d Hz\n\r", LEDFrequency);
+//							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+//						}
+//						else
+//						{
+//							sprintf(TxDataBuffer, "Frequency can't be Negative\n\r");
+//							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+//						}
+						break;
+					case 'd':
+						break;
+					case 'x':
+						State = Main_Menu_Print;
+						break;
+					default:
+						sprintf(TxDataBuffer, "\nOnly[a][s][d][f][g][h][j][x]\n\r");
+						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						State = Menu_1_Print;
+						break;
+				}
+				break;
+
+	//--------------------------------------------------------------------------------------------------------
+
+			case Menu_2_Print:
+				sprintf(TxDataBuffer, "\n----- Sine Wave -----\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "V High = \t[a]Up [s]Down\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "V Low  = \t[d]Up [f]Down\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "Slope  = \t[g]Switch Slope\n\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				sprintf(TxDataBuffer, "----------------[x]Back\n\n\r");
+				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+				State = Menu_2_Select;
+				break;
+
+			case Menu_2_Select:
+
+				switch(inputchar)
+				{
+					case -1 :
+						break;
+					case 'x':
+						State = Main_Menu_Print;
+						break;
+					default:
+						sprintf(TxDataBuffer, "\nOnly [a][s][d][f][g][x] Pls\n\r");
+						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						State = Menu_2_Print;
+						break;
+				}
+
+				break;
+
+	//--------------------------------------------------------------------------------------------------------
+
+			default:
+				break;
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//	  if (micros() - timestamp > period)
+//	  {
+//			timestamp = micros();
+//			dataOut++;
+//			dataOut %= 4096;
+//			if (hspi3.State == HAL_SPI_STATE_READY
+//				&& HAL_GPIO_ReadPin(SPI_SS_GPIO_Port, SPI_SS_Pin) == GPIO_PIN_SET)
+//			{
+//				MCP4922SetOutput(DACConfig, dataOut);
+//			}
+//	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -496,6 +681,19 @@ inline uint64_t micros()
 {
 	return htim11.Instance->CNT + _micro;
 }
+
+int16_t UARTRecieveIT()
+{
+	static uint32_t dataPos =0;
+	int16_t data=-1;
+	if(huart2.RxXferSize - huart2.RxXferCount!=dataPos)
+	{
+		data=RxDataBuffer[dataPos];
+		dataPos= (dataPos+1)%huart2.RxXferSize;
+	}
+	return data;
+}
+
 /* USER CODE END 4 */
 
 /**
