@@ -61,14 +61,16 @@ char TxDataBuffer[32]    = { 0 };
 char RxDataBuffer[32]    = { 0 };
 
 float    VRef 		= 3.3;
-float 	 VMax 		= 3.3;
-float 	 VMin 		= 0;
+uint8_t  Vmax 		= 33;
+uint8_t  Vmin 		= 0;
 uint16_t ADCMax 	= 4096;
 uint16_t ADCMin 	= 0;
 
-float    freq		= 1;
+uint8_t  freqx10	= 10;
 uint64_t period 	= 0;
 uint64_t timestamp  = 0;
+
+char slope[5] = "UP";
 
 typedef enum
 {
@@ -146,7 +148,7 @@ int main(void)
   HAL_ADC_Start_DMA(&hadc1, (uint32_t*) &ADCin, 1);
   HAL_GPIO_WritePin(LOAD_GPIO_Port, LOAD_Pin, GPIO_PIN_RESET);
 
-  period = 1000000/(freq * (ADCMax - ADCMin));
+  period = 1000000/(freqx10 * (ADCMax - ADCMin) / 10);
 
   {
  	  char temp[]="\n\n\r!!! GET STARTED !!!\n\n\r";
@@ -218,13 +220,13 @@ int main(void)
 			case Menu_1_Print:
 				sprintf(TxDataBuffer, "\n----- Sawtooth -----\n\r");
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "V High = \t[a]Up [s]Down\n\r");
+				sprintf(TxDataBuffer, "V High = %d.%d\t[a]Up [s]Down\n\r",Vmax/10, Vmax%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "V Low  = \t[d]Up [f]Down\n\r");
+				sprintf(TxDataBuffer, "V Low  = %d.%d\t[d]Up [f]Down\n\r",Vmin/10, Vmin%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "Freq   = \t[g]Up [h]Down\n\r");
+				sprintf(TxDataBuffer, "Freq   = %d.%d\t[g]Up [h]Down\n\r",freqx10/10, freqx10%10);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-				sprintf(TxDataBuffer, "Slope  = \t[j]Switch Slope\n\r");
+				sprintf(TxDataBuffer, "Slope  = %s\t[j]Switch Slope\n\r",slope);
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
 				sprintf(TxDataBuffer, "----------------[x]Back\n\n\r");
 				HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
@@ -237,27 +239,93 @@ int main(void)
 					case -1 :
 						break;
 					case 'a':
-						sprintf(TxDataBuffer, "Blinking LED at %d Hz\n\r", VMax);
-						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-
-//						sprintf(TxDataBuffer, "Blinking LED at %d Hz\n\r", LEDFrequency);
-//						HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						if(Vmax == 33)
+						{
+							sprintf(TxDataBuffer, "\nV High is Max at 3.3\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							Vmax += 1;
+						}
+						State = Menu_1_Print;
 						break;
 					case 's':
-//						if(LEDFrequency != 0)
-//						{
-//
-//							sprintf(TxDataBuffer, "Blinking LED at %d Hz\n\r", LEDFrequency);
-//							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-//						}
-//						else
-//						{
-//							sprintf(TxDataBuffer, "Frequency can't be Negative\n\r");
-//							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
-//						}
+						if(Vmax == Vmin)
+						{
+							sprintf(TxDataBuffer, "\nV High can't Less than V Low\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							Vmax -= 1;
+						}
+						State = Menu_1_Print;
 						break;
 					case 'd':
+						if(Vmax == Vmin)
+						{
+							sprintf(TxDataBuffer, "\nV Low can't More than V High\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							Vmin += 1;
+						}
+						State = Menu_1_Print;
 						break;
+					case 'f':
+						if(Vmin == 0)
+						{
+							sprintf(TxDataBuffer, "\nV Low is Min at 0.0\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							Vmin -= 1;
+						}
+						State = Menu_1_Print;
+						break;
+					case 'g':
+						if(freqx10 == 100)
+						{
+							sprintf(TxDataBuffer, "\nFreq is Max at 10.0 Hz\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							freqx10 += 1;
+						}
+						State = Menu_1_Print;
+						break;
+					case 'h':
+						if(freqx10 == 0)
+						{
+							sprintf(TxDataBuffer, "\nFreq is Min at 0.0 Hz\n\r");
+							HAL_UART_Transmit(&huart2, (uint8_t*)TxDataBuffer, strlen(TxDataBuffer), 100);
+						}
+						else
+						{
+							freqx10 -= 1;
+						}
+						State = Menu_1_Print;
+						break;
+
+					case 'j':
+						if(slope[0] == 'U')
+						{
+							sprintf(slope, "DOWN");
+						}
+						else
+						{
+							sprintf(slope, "UP");
+						}
+						State = Menu_1_Print;
+						break;
+
+
+
+
 					case 'x':
 						State = Main_Menu_Print;
 						break;
